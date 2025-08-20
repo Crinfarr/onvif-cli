@@ -1,4 +1,6 @@
-mod onvif;
+mod onvif {
+
+}
 
 use color_eyre::Result;
 use ratatui::{
@@ -6,8 +8,8 @@ use ratatui::{
     crossterm::event::{self, Event, KeyCode},
     layout::{Constraint, Flex, Layout},
     style::{Color, Style, Stylize},
-    text::{Line, Span, Text},
-    widgets::{Block, Borders, Clear, List, Paragraph, Wrap},
+    text::{Line, Span},
+    widgets::{Block, Clear, List, Paragraph, Wrap},
 };
 use tui_textarea::TextArea;
 
@@ -21,10 +23,10 @@ fn main() -> Result<()> {
 
 #[derive(Debug, Default)]
 pub struct App<'a> {
-    warnExit: bool,
+    warn_exit: bool,
     exit: bool,
     screen: ScreenState,
-    ipAddrs: Vec<String>,
+    ip_addrs: Vec<String>,
     mv_prompt: TextArea<'a>,
 }
 
@@ -40,20 +42,20 @@ impl App<'_> {
         while !self.exit {
             terminal.draw(|frame| self.draw(frame))?;
             if let Event::Key(key) = event::read()? {
-                if self.warnExit {
+                if self.warn_exit {
                     if key.code == KeyCode::Esc {
                         self.exit = true;
                     }
                     else {
-                        self.warnExit = false;
+                        self.warn_exit = false;
                     }
                     continue;
                 }
                 match self.screen {
                     ScreenState::MainScreen => match key.code {
                         KeyCode::Esc => {
-                            if !self.warnExit {
-                                self.warnExit = true
+                            if !self.warn_exit {
+                                self.warn_exit = true
                             }
                         }
                         KeyCode::Enter => {
@@ -62,15 +64,15 @@ impl App<'_> {
                             let _text = self.mv_prompt.yank_text();
                         }
                         _keycode => {
-                            if self.mv_prompt.input(key) {}
+                            if self.mv_prompt.input(key) {
+                            }
                         }
                     },
                 }
             }
         }
-        return Ok(());
+        Ok(())
     }
-
     fn draw(&self, frame: &mut Frame) {
         match self.screen {
             ScreenState::MainScreen => {
@@ -82,7 +84,7 @@ impl App<'_> {
                     .areas(top_half);
                 let iplist = List::default()
                     .block(Block::bordered())
-                    .items(self.ipAddrs.clone());
+                    .items(self.ip_addrs.clone());
                 let details = Paragraph::new("there will be a widget here with formatted details. eventually. dont count on it")
                     .block(Block::bordered())
                     .wrap(Wrap::default());
@@ -90,7 +92,7 @@ impl App<'_> {
                 frame.render_widget(details, popout);
                 frame.render_widget(&self.mv_prompt, prompt);
                 //OVERLAYS DO THESE LAST
-                if self.warnExit {
+                if self.warn_exit {
                     let warnbox = Paragraph::new(Line::from(vec![
                         Span::raw("Press"),
                         " esc ".fg(Color::Red),
