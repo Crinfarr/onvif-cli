@@ -16,6 +16,7 @@ use tui_textarea::TextArea;
 fn main() -> Result<()> {
     color_eyre::install()?;
     let mut term = ratatui::init();
+    term.clear()?;
     let app = App::default().main_loop(&mut term);
     ratatui::restore();
     app
@@ -71,6 +72,7 @@ impl App<'_> {
                 }
             }
         }
+	terminal.clear()?;
         Ok(())
     }
     fn draw(&self, frame: &mut Frame) {
