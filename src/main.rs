@@ -1,10 +1,26 @@
 mod onvif;
+mod device_docs;
+
+use std::str::FromStr;
+
+use once_cell::sync::Lazy;
 
 use color_eyre::Result;
 use ratatui::{
-    crossterm::event::{self, Event, KeyCode, KeyEventKind}, layout::{Constraint, Flex, Layout}, style::{Color, Style, Stylize}, symbols, text::{Line, Span}, widgets::{Block, Borders, Clear, List, Paragraph, Wrap}, DefaultTerminal, Frame
+    DefaultTerminal, Frame,
+    crossterm::event::{self, Event, KeyCode, KeyEventKind},
+    layout::{Constraint, Flex, Layout},
+    style::{Color, Style, Stylize},
+    symbols,
+    text::{Line, Span},
+    widgets::{Block, Borders, Clear, List, Paragraph, Wrap},
 };
+use regex::Regex;
 use tui_textarea::TextArea;
+
+use crate::device_docs::DeviceDoc;
+
+static IP_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"^((2(([0-4]\d)|(5[0-5]))|([01]?\d?\d))\.){3}(2(([0-4]\d)|(5[0-5]))|([01]?\d?\d))$").unwrap());
 
 fn main() -> Result<()> {
     color_eyre::install()?;
@@ -20,7 +36,7 @@ pub struct App<'a> {
     warn_exit: bool,
     exit: bool,
     screen: ScreenState,
-    ip_addrs: Vec<String>,
+    ip_addrs: Vec<DeviceDoc>,
     ip_sel_idx: usize,
     mv_prompt: TextArea<'a>,
 }
@@ -42,7 +58,9 @@ impl App<'_> {
         self.mv_prompt.set_block(Block::bordered());
         while !self.exit {
             terminal.draw(|frame| self.draw(frame))?;
-            if let Event::Key(key) = event::read()? && key.kind == KeyEventKind::Press {
+            if let Event::Key(key) = event::read()?
+                && key.kind == KeyEventKind::Press
+            {
                 if self.warn_exit {
                     if key.code == KeyCode::Esc {
                         self.exit = true;
@@ -61,16 +79,23 @@ impl App<'_> {
                         KeyCode::Enter => {
                             self.mv_prompt.delete_line_by_head();
                             let text = self.mv_prompt.yank_text();
-                            let mut splt = text.trim().split(' ');
+                            let mut splt = text.trim().split(' ').filter(|s| !s.is_empty());
                             if let Some(cmd) = splt.next() {
                                 match cmd {
                                     "add" => {
                                         if let Some(arg) = splt.next() {
-                                            self.set_prompt_status(
-                                                format!("Added {}", arg),
-                                                BarStatus::Complete,
-                                            );
-                                            self.ip_addrs.push(arg.to_string());
+                                            if let Some(ip) = IP_REGEX.find(arg) {
+                                                self.set_prompt_status(
+                                                    format!("Added {}", ip.as_str()),
+                                                    BarStatus::Complete,
+                                                );
+                                                self.ip_addrs.push(DeviceDoc::from_str(ip.into()).unwrap());
+                                            } else {
+                                                self.set_prompt_status(
+                                                    format!("{} is not a valid IPv4", arg),
+                                                    BarStatus::Error,
+                                                );
+                                            }
                                         } else {
                                             self.set_prompt_status(
                                                 "No argument provided for Add operator".into(),
@@ -95,12 +120,13 @@ impl App<'_> {
                                                 let rmd = self.ip_addrs.remove(num as usize);
                                                 if self.ip_sel_idx > 0//don't underflow while stepping up
                                                     && (self.ip_sel_idx == self.ip_addrs.len()//step up if at last position
-                                                        || self.ip_sel_idx > num as usize)//    or if removing before cursor 
+                                                        || self.ip_sel_idx > num as usize)
+                                                //    or if removing before cursor
                                                 {
                                                     self.ip_sel_idx -= 1;
                                                 }
                                                 self.set_prompt_status(
-                                                    format!("Removed {}", rmd),
+                                                    format!("Removed {}", rmd.ip),
                                                     BarStatus::Complete,
                                                 );
                                             } else {
@@ -110,9 +136,13 @@ impl App<'_> {
                                                 );
                                             }
                                         } else {
+                                            let rmd = self.ip_addrs.remove(self.ip_sel_idx as usize);
+                                            if self.ip_sel_idx == self.ip_addrs.len() && self.ip_sel_idx > 0 {
+                                                self.ip_sel_idx -= 1;
+                                            }
                                             self.set_prompt_status(
-                                                "No argument specified for remove operator".into(),
-                                                BarStatus::Error,
+                                                format!("Removed selected ({})", rmd.ip),
+                                                BarStatus::Complete,
                                             );
                                         }
                                     }
@@ -142,7 +172,7 @@ impl App<'_> {
                             }
                         }
                         KeyCode::Down => {
-                            if self.ip_sel_idx+1 < self.ip_addrs.len() {
+                            if self.ip_sel_idx + 1 < self.ip_addrs.len() {
                                 self.ip_sel_idx += 1;
                             }
                         }
@@ -195,11 +225,11 @@ impl App<'_> {
                         self.ip_addrs
                             .iter()
                             .enumerate()
-                            .map(|(index, itemname)| {
+                            .map(|(index, dev_doc)| {
                                 if index == self.ip_sel_idx.into() {
-                                    format!("{}. {}", index, itemname).black().on_white()
+                                    format!("{}. {}", index, dev_doc.ip).black().on_white()
                                 } else {
-                                    format!("{}. {}", index, itemname).into()
+                                    format!("{}. {}", index, dev_doc.ip).into()
                                 }
                             })
                             .collect::<Vec<Span>>(),
@@ -240,11 +270,11 @@ impl App<'_> {
                 let help_for = b_help_for.as_ref();
                 match help_for {
                     ScreenState::MainScreen => {
-                        let help_win = Paragraph::new(include_str!("./main_help.txt")).block(
-                            Block::bordered().title("Help (1)").title_bottom(
+                        let help_win = Paragraph::new(include_str!("./main_help.txt"))
+                            .block(Block::bordered().title("Help (1)").title_bottom(
                                 Line::from("Press any key to exit".green()).right_aligned(),
-                            )
-                        ).wrap(Wrap {trim: false});
+                            ))
+                            .wrap(Wrap { trim: false });
                         frame.render_widget(help_win, frame.area());
                     }
                     _ => {}

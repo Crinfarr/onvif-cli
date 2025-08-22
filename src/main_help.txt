@@ -13,8 +13,4 @@ Core commands
 
 > exit, close, quit     tells you how to actually close the app, stupid
 
-> auth <user>:<pass>    Sets the username and password for HTTP authentication, uses digest mode by default
-
-> port <num>            Sets the port number for the selected host
-
 > ?                     Shows this help

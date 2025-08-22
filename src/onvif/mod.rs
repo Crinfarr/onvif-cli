@@ -1,2 +1,3 @@
-mod create_profile;
-pub use self::create_profile::create_profile;
+mod get_service_capabilities;
+
+pub use get_service_capabilities::GetServiceCapabilities;
