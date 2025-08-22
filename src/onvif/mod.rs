@@ -1,4 +1,2 @@
-pub mod create_profile;
-pub mod onvif {
-    use crate::onvif::create_profile;
-}
+mod create_profile;
+pub use self::create_profile::create_profile;
