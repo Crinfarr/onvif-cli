@@ -1,0 +1,20 @@
+Core commands
+
+> add <valid ip>        Adds any valid IP to the scannable list
+                        examples:
+                        add 127.0.0.1
+                        add 192.168.68.5
+                        etc
+
+> rem, del [index]      Removes the IP listed at the given index, or the currently highlighted one if no index was specified.
+                        example:
+                        rem 5
+                        del
+
+> exit, close, quit     tells you how to actually close the app, stupid
+
+> auth <user>:<pass>    Sets the username and password for HTTP authentication, uses digest mode by default
+
+> port <num>            Sets the port number for the selected host
+
+> ?                     Shows this help
