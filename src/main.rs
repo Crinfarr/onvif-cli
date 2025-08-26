@@ -1,7 +1,13 @@
-mod onvif;
 mod device_docs;
+mod renderable_screen;
+mod renderable_widget;
+mod onvif;
+mod screens {
+    mod main_screen;
+    mod confirm_exit;
+}
 
-use std::str::FromStr;
+use std::{str::FromStr};
 
 use once_cell::sync::Lazy;
 
@@ -20,13 +26,17 @@ use tui_textarea::TextArea;
 
 use crate::device_docs::DeviceDoc;
 
-static IP_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"^((2(([0-4]\d)|(5[0-5]))|([01]?\d?\d))\.){3}(2(([0-4]\d)|(5[0-5]))|([01]?\d?\d))$").unwrap());
+static IP_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"^((2(([0-4]\d)|(5[0-5]))|([01]?\d?\d))\.){3}(2(([0-4]\d)|(5[0-5]))|([01]?\d?\d))$")
+        .unwrap()
+});
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     color_eyre::install()?;
     let mut term = ratatui::init();
     term.clear()?;
-    let app = App::default().main_loop(&mut term);
+    let app = App::default().main_loop(&mut term).await;
     ratatui::restore();
     app
 }
@@ -38,7 +48,7 @@ pub struct App<'a> {
     screen: ScreenState,
     ip_addrs: Vec<DeviceDoc>,
     ip_sel_idx: usize,
-    mv_prompt: TextArea<'a>,
+    need_rerender:bool
 }
 
 #[derive(Debug, Default, Clone)]
@@ -54,10 +64,11 @@ enum BarStatus {
 }
 
 impl App<'_> {
-    pub fn main_loop(&mut self, terminal: &mut DefaultTerminal) -> Result<()> {
-        self.mv_prompt.set_block(Block::bordered());
+    pub async fn main_loop(&mut self, terminal: &mut DefaultTerminal) -> Result<()> {
         while !self.exit {
-            terminal.draw(|frame| self.draw(frame))?;
+            if self.need_rerender {
+                terminal.draw(|frame| self.draw(frame))?;
+            }
             if let Event::Key(key) = event::read()?
                 && key.kind == KeyEventKind::Press
             {
@@ -89,7 +100,8 @@ impl App<'_> {
                                                     format!("Added {}", ip.as_str()),
                                                     BarStatus::Complete,
                                                 );
-                                                self.ip_addrs.push(DeviceDoc::from_str(ip.into()).unwrap());
+                                                self.ip_addrs
+                                                    .push(DeviceDoc::from_str(ip.into()).unwrap());
                                             } else {
                                                 self.set_prompt_status(
                                                     format!("{} is not a valid IPv4", arg),
@@ -136,8 +148,11 @@ impl App<'_> {
                                                 );
                                             }
                                         } else {
-                                            let rmd = self.ip_addrs.remove(self.ip_sel_idx as usize);
-                                            if self.ip_sel_idx == self.ip_addrs.len() && self.ip_sel_idx > 0 {
+                                            let rmd =
+                                                self.ip_addrs.remove(self.ip_sel_idx as usize);
+                                            if self.ip_sel_idx == self.ip_addrs.len()
+                                                && self.ip_sel_idx > 0
+                                            {
                                                 self.ip_sel_idx -= 1;
                                             }
                                             self.set_prompt_status(
@@ -204,68 +219,7 @@ impl App<'_> {
 
     fn draw(&self, frame: &mut Frame) {
         match &self.screen {
-            ScreenState::MainScreen => {
-                let [top_half, prompt] =
-                    Layout::vertical([Constraint::Percentage(90), Constraint::Length(3)])
-                        .flex(Flex::Center)
-                        .areas(frame.area());
-                let [list_area, popout] =
-                    Layout::horizontal([Constraint::Fill(1), Constraint::Fill(1)])
-                        .flex(Flex::Start)
-                        .areas(top_half);
-                let iplist = List::default()
-                    .block(Block::bordered().borders(Borders::ALL).border_set(
-                        symbols::border::Set {
-                            top_right: symbols::line::NORMAL.horizontal_down,
-                            bottom_right: symbols::line::NORMAL.horizontal_up,
-                            ..Default::default()
-                        },
-                    ))
-                    .items(
-                        self.ip_addrs
-                            .iter()
-                            .enumerate()
-                            .map(|(index, dev_doc)| {
-                                if index == self.ip_sel_idx.into() {
-                                    format!("{}. {}", index, dev_doc.ip).black().on_white()
-                                } else {
-                                    format!("{}. {}", index, dev_doc.ip).into()
-                                }
-                            })
-                            .collect::<Vec<Span>>(),
-                    );
-                let details = Paragraph::new("there will be a widget here with formatted details. eventually. dont count on it")
-                    .block(Block::bordered().borders(Borders::ALL ^ Borders::LEFT))
-                    .wrap(Wrap::default());
-                frame.render_widget(iplist, list_area);
-                frame.render_widget(details, popout);
-                frame.render_widget(&self.mv_prompt, prompt);
-                //OVERLAYS DO THESE LAST
-                if self.warn_exit {
-                    let outerbox = Block::bordered()
-                        .title("Exit warning")
-                        .border_style(Style::new().fg(Color::Red))
-                        .bg(Color::Black);
-                    let warnbox = Paragraph::new(Line::from(vec![
-                        Span::raw("Press"),
-                        " esc ".fg(Color::Red),
-                        Span::raw("again to exit, any other key to go back"),
-                    ]))
-                    .alignment(ratatui::layout::Alignment::Center);
-                    let [area] = Layout::horizontal([Constraint::Fill(100)])
-                        .flex(Flex::Center)
-                        .areas(frame.area());
-                    let [area] = Layout::vertical([Constraint::Percentage(20)])
-                        .flex(Flex::Center)
-                        .areas(area);
-                    let [textline] = Layout::vertical([Constraint::Length(1)])
-                        .flex(Flex::Center)
-                        .areas(area);
-                    frame.render_widget(Clear, area);
-                    frame.render_widget(outerbox, area);
-                    frame.render_widget(warnbox, textline);
-                }
-            }
+            ScreenState::MainScreen => {}
             ScreenState::HelpScreen(b_help_for) => {
                 let help_for = b_help_for.as_ref();
                 match help_for {
