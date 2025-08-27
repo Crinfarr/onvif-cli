@@ -15,14 +15,11 @@ use color_eyre::Result;
 use ratatui::{
     DefaultTerminal, Frame,
     crossterm::event::{self, Event, KeyCode, KeyEventKind},
-    layout::{Constraint, Flex, Layout},
-    style::{Color, Style, Stylize},
-    symbols,
-    text::{Line, Span},
-    widgets::{Block, Borders, Clear, List, Paragraph, Wrap},
+    style::Stylize,
+    text::Line,
+    widgets::{Block, Paragraph, Wrap},
 };
 use regex::Regex;
-use tui_textarea::TextArea;
 
 use crate::device_docs::DeviceDoc;
 

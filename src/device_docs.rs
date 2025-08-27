@@ -1,4 +1,4 @@
-use std::{error::Error, net::AddrParseError, str::FromStr};
+use std::str::FromStr;
 
 use crate::IP_REGEX;
 

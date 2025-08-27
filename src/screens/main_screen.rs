@@ -1,19 +1,18 @@
 use once_cell::sync::Lazy;
 use ratatui::{
     Frame,
-    crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyEventState, KeyModifiers},
+    crossterm::event::{KeyCode, KeyEvent, KeyEventKind},
     layout::{Constraint, Flex, Layout, Rect},
     style::{Color, Style, Stylize},
     symbols,
-    text::Span,
-    widgets::{Block, Borders, List, Paragraph, Wrap},
+    widgets::{Block, Borders, List, ListItem, Paragraph, Wrap},
 };
 use regex::Regex;
 use tui_textarea::TextArea;
 
 use crate::{
     device_docs::DeviceDoc, renderable_screen::RenderableScreen,
-    renderable_widget::RenderableWidget,
+    renderable_widget::RenderableWidget, screens::confirm_exit::ConfirmExitScreen,
 };
 
 #[derive(Debug, Default)]

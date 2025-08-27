@@ -1,5 +1,5 @@
 use ratatui::{
-    crossterm::event::{KeyCode, KeyEvent}, layout::{Constraint, Flex, Layout}, style::{Color, Style, Stylize}, text::{Line, Span}, widgets::{Block, Clear, Paragraph}, DefaultTerminal, Frame
+    crossterm::event::{KeyCode, KeyEvent}, layout::{Constraint, Flex, Layout}, style::{Color, Style, Stylize}, text::{Line, Span}, widgets::{Block, Clear, Paragraph}, Frame
 };
 
 use crate::renderable_screen::RenderableScreen;

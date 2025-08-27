@@ -1,4 +1,3 @@
-use std::{future, pin::Pin, thread};
 
 use reqwest::{
     header::{HeaderMap, HeaderValue}, Error, Method, Response

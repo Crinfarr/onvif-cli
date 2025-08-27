@@ -1,4 +1,4 @@
-use ratatui::{crossterm::event::KeyEvent, prelude::CrosstermBackend, DefaultTerminal, Frame, Terminal};
+use ratatui::{crossterm::event::KeyEvent, Frame};
 
 
 pub trait RenderableScreen {
