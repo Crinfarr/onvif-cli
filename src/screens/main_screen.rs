@@ -17,14 +17,28 @@ use crate::{
 
 #[derive(Debug, Default)]
 pub struct MainScreen<'a> {
-    ip_addrs: Vec<DeviceDoc>,
     inputbox: PromptBox<'a>,
     iplist: IpList<'a>,
+    exit_popup:ConfirmExitScreen,
     try_exit: bool,
+    pub exit: bool,
 }
-impl MainScreen<'_> {}
+impl MainScreen<'_> {
+}
 impl RenderableScreen for MainScreen<'_> {
     fn handle_input(&mut self, input: ratatui::crossterm::event::KeyEvent) -> () {
+        if self.try_exit {
+            match input {
+                any_input => self.exit_popup.handle_input(any_input)
+            }
+            if let Some(should_exit) = self.exit_popup.should_exit {
+                self.exit = should_exit;
+                if !should_exit {
+                    self.try_exit = false;
+                }
+                return;
+            }
+        }
         if input.kind != KeyEventKind::Press {
             return; //Only respond once in terminals that count press and release as two events
         }
@@ -32,6 +46,7 @@ impl RenderableScreen for MainScreen<'_> {
             KeyCode::Esc => {
                 self.try_exit = true;
             }
+            KeyCode::Up | KeyCode::Down => self.iplist.handle_input(input),
             _ => self.inputbox.handle_input(input),
         }
     }
@@ -43,29 +58,6 @@ impl RenderableScreen for MainScreen<'_> {
         let [list_area, detail] = Layout::horizontal([Constraint::Fill(1), Constraint::Fill(1)])
             .flex(Flex::Start)
             .areas(top_half);
-        let iplist = List::default()
-            .block(
-                Block::bordered()
-                    .borders(Borders::ALL)
-                    .border_set(symbols::border::Set {
-                        top_right: symbols::line::NORMAL.horizontal_down,
-                        bottom_right: symbols::line::NORMAL.horizontal_up,
-                        ..Default::default()
-                    }),
-            )
-            .items(
-                self.ip_addrs
-                    .iter()
-                    .enumerate()
-                    .map(|(index, dev_doc)| {
-                        if index == self.ip_sel_idx.into() {
-                            format!("{}. {}", index, dev_doc.ip).black().on_white()
-                        } else {
-                            format!("{}. {}", index, dev_doc.ip).into()
-                        }
-                    })
-                    .collect::<Vec<Span>>(),
-            );
         let details = Paragraph::new(
             "there will be a widget here with formatted details. eventually. dont count on it",
         )
@@ -74,11 +66,15 @@ impl RenderableScreen for MainScreen<'_> {
         self.iplist.render(frame, list_area);
         frame.render_widget(details, detail);
         self.inputbox.render(frame, prompt);
+        //overlay
+        if self.try_exit {
+            self.exit_popup.render(frame);
+        }
     }
 }
 
 //IP list
-#[derive(Debug, Default)]
+#[derive(Debug)]
 struct IpList<'a> {
     inner: List<'a>,
     selected: usize,
@@ -104,7 +100,34 @@ impl RenderableWidget for IpList<'_> {
         }
     }
     fn render(&self, frame: &mut Frame, area: Rect) -> () {
-        frame.render_widget(&self.inner, area);
+        let renderable =
+            self.inner
+                .clone()
+                .items(self.ips.iter().enumerate().map(|(index, doc)| {
+                    if index == self.selected {
+                        ListItem::new(format!("{}> {}", index, doc.ip))
+                    } else {
+                        ListItem::new(format!("{}> {}", index, doc.ip))
+                            .black()
+                            .on_white()
+                    }
+                }));
+        frame.render_widget(renderable, area);
+    }
+}
+impl Default for IpList<'_> {
+    fn default() -> Self {
+        IpList {
+            inner: List::default().block(Block::bordered().borders(Borders::ALL).border_set(
+                symbols::border::Set {
+                    top_right: symbols::line::NORMAL.horizontal_down,
+                    bottom_right: symbols::line::NORMAL.horizontal_up,
+                    ..Default::default()
+                },
+            )),
+            ips: Vec::default(),
+            selected: usize::default(),
+        }
     }
 }
 
@@ -182,9 +205,10 @@ impl RenderableWidget for PromptBox<'_> {
                                 None
                             },
                         )),
-                        "?"|"help" => (self.handler)(CommandSignal::Help),
-                        "exit"|"quit"|"close" => (self.handler)(CommandSignal::Exit),
-                        unknown => self.set_status(format!("Unknown command {}", unknown), BarStatus::Warning),
+                        "?" | "help" => (self.handler)(CommandSignal::Help),
+                        "exit" | "quit" | "close" => (self.handler)(CommandSignal::Exit),
+                        unknown => self
+                            .set_status(format!("Unknown command {}", unknown), BarStatus::Warning),
                     }
                 }
             }

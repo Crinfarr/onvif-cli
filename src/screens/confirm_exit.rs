@@ -4,27 +4,19 @@ use ratatui::{
 
 use crate::renderable_screen::RenderableScreen;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct ConfirmExitScreen {
-    on_confirm: fn() -> (),
-    on_cancel: fn() -> (),
+    pub should_exit:Option<bool>
 }
-impl Default for ConfirmExitScreen {
-    fn default() -> Self {
-        Self {
-            on_confirm: || (),
-            on_cancel: || (),
-        }
-    }
-}
+impl ConfirmExitScreen {}
 impl RenderableScreen for ConfirmExitScreen {
     fn handle_input(&mut self, input: KeyEvent) -> () {
         match input.code {
             KeyCode::Esc => {
-                (self.on_confirm)();
+                self.should_exit = Some(true)
             }
             _ => {
-                (self.on_cancel)();
+                self.should_exit = Some(false)
             }
         }
     }
