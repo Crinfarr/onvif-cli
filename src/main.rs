@@ -1,28 +1,23 @@
 mod device_docs;
-mod renderable_screen;
-mod renderable_widget;
+mod traits;
 mod onvif;
 mod screens {
-    pub mod main_screen;
     pub mod confirm_exit;
+    pub mod main_screen;
 }
 
-use std::{str::FromStr, time::Duration};
+use std::time::Duration;
 
-use crossterm::event::KeyEvent;
 use once_cell::sync::Lazy;
 
 use color_eyre::Result;
 use ratatui::{
-    DefaultTerminal, Frame,
-    crossterm::event::{self, Event, KeyCode, KeyEventKind},
-    style::Stylize,
-    text::Line,
-    widgets::{Block, Paragraph, Wrap},
+    DefaultTerminal,
+    crossterm::event::{self, Event},
 };
 use regex::Regex;
 
-use crate::{device_docs::DeviceDoc, renderable_screen::RenderableScreen};
+use crate::traits::renderable_screen::RenderableScreen;
 
 static IP_REGEX: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r"^((2(([0-4]\d)|(5[0-5]))|([01]?\d?\d))\.){3}(2(([0-4]\d)|(5[0-5]))|([01]?\d?\d))$")
@@ -42,7 +37,7 @@ async fn main() -> Result<()> {
 #[derive(Debug, Default)]
 pub struct App<'a> {
     screen: ScreenState,
-    main:crate::screens::main_screen::MainScreen<'a>
+    main: crate::screens::main_screen::MainScreen<'a>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -50,11 +45,6 @@ enum ScreenState {
     #[default]
     MainScreen,
     HelpScreen(Box<ScreenState>),
-}
-enum BarStatus {
-    Complete,
-    Warning,
-    Error,
 }
 
 impl App<'_> {
@@ -82,23 +72,4 @@ impl App<'_> {
         terminal.clear()?;
         Ok(())
     }
-    /*fn draw(&self, frame: &mut Frame) {
-        match &self.screen {
-            ScreenState::MainScreen => {}
-            ScreenState::HelpScreen(b_help_for) => {
-                let help_for = b_help_for.as_ref();
-                match help_for {
-                    ScreenState::MainScreen => {
-                        let help_win = Paragraph::new(include_str!("./main_help.txt"))
-                            .block(Block::bordered().title("Help (1)").title_bottom(
-                                Line::from("Press any key to exit".green()).right_aligned(),
-                            ))
-                            .wrap(Wrap { trim: false });
-                        frame.render_widget(help_win, frame.area());
-                    }
-                    _ => {}
-                }
-            }
-        }
-    }*/
 }

@@ -2,7 +2,7 @@ use ratatui::{
     crossterm::event::{KeyCode, KeyEvent}, layout::{Constraint, Flex, Layout}, style::{Color, Style, Stylize}, text::{Line, Span}, widgets::{Block, Clear, Paragraph}, Frame
 };
 
-use crate::renderable_screen::RenderableScreen;
+use crate::traits::renderable_screen::RenderableScreen;
 
 #[derive(Debug, Default)]
 pub struct ConfirmExitScreen {
@@ -10,7 +10,7 @@ pub struct ConfirmExitScreen {
 }
 impl ConfirmExitScreen {}
 impl RenderableScreen for ConfirmExitScreen {
-    fn handle_input(&mut self, input: KeyEvent) -> () {
+    fn handle_input(&mut self, input: KeyEvent) {
         match input.code {
             KeyCode::Esc => {
                 self.should_exit = Some(true)
@@ -21,7 +21,7 @@ impl RenderableScreen for ConfirmExitScreen {
         }
     }
 
-    fn render(&self, frame: &mut Frame) -> () {
+    fn render(&self, frame: &mut Frame) {
         let outerbox = Block::bordered()
             .title("Exit warning")
             .border_style(Style::new().fg(Color::Red))

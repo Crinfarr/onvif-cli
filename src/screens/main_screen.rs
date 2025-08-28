@@ -3,7 +3,7 @@ use ratatui::{
     Frame,
     crossterm::event::{KeyCode, KeyEvent, KeyEventKind},
     layout::{Constraint, Flex, Layout, Rect},
-    style::{Color, Style, Stylize},
+    style::{Style, Stylize},
     symbols,
     widgets::{Block, Borders, List, ListItem, Paragraph, Wrap},
 };
@@ -11,15 +11,16 @@ use regex::Regex;
 use tui_textarea::TextArea;
 
 use crate::{
-    device_docs::DeviceDoc, renderable_screen::RenderableScreen,
-    renderable_widget::RenderableWidget, screens::confirm_exit::ConfirmExitScreen,
+    device_docs::DeviceDoc,
+    screens::confirm_exit::ConfirmExitScreen,
+    traits::{RenderableScreen, RenderableWidget},
 };
 
 #[derive(Debug, Default)]
 pub struct MainScreen<'a> {
     inputbox: PromptBox<'a>,
     iplist: IpList<'a>,
-    exit_popup:ConfirmExitScreen,
+    exit_popup: ConfirmExitScreen,
     try_exit: bool,
     pub exit: bool,
 }
@@ -50,7 +51,7 @@ impl RenderableScreen for MainScreen<'_> {
             _ => self.inputbox.handle_input(input),
         }
     }
-    fn render(&self, frame: &mut Frame) -> () {
+    fn render(&self, frame: &mut Frame) {
         let [top_half, prompt] =
             Layout::vertical([Constraint::Percentage(90), Constraint::Length(3)])
                 .flex(Flex::Center)
@@ -82,7 +83,7 @@ struct IpList<'a> {
 }
 impl IpList<'_> {}
 impl RenderableWidget for IpList<'_> {
-    fn handle_input(&mut self, key: KeyEvent) -> () {
+    fn handle_input(&mut self, key: KeyEvent) {
         match key.code {
             KeyCode::Up => {
                 if self.selected > 0 {
@@ -99,7 +100,7 @@ impl RenderableWidget for IpList<'_> {
             }
         }
     }
-    fn render(&self, frame: &mut Frame, area: Rect) -> () {
+    fn render(&self, frame: &mut Frame, area: Rect) {
         let renderable =
             self.inner
                 .clone()
@@ -215,7 +216,7 @@ impl RenderableWidget for PromptBox<'_> {
             _ => if self.inner.input(input) {},
         }
     }
-    fn render(&self, frame: &mut Frame, area: Rect) -> () {
+    fn render(&self, frame: &mut Frame, area: Rect) {
         frame.render_widget(&self.inner, area);
     }
 }

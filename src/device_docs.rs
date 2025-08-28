@@ -16,10 +16,10 @@ impl FromStr for DeviceDoc {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let matched = IP_REGEX.find(s);
         if let Some(ip) = matched {
-            return Ok(DeviceDoc {ip: ip.as_str().to_string()})
+            Ok(DeviceDoc {ip: ip.as_str().to_string()})
         } else {
-            return Err(ParseIPError);
-        };
+            Err(ParseIPError)
+        }
     }
 }
 impl DeviceDoc {
