@@ -24,13 +24,12 @@ pub struct MainScreen<'a> {
     try_exit: bool,
     pub exit: bool,
 }
-impl MainScreen<'_> {
-}
+impl MainScreen<'_> {}
 impl RenderableScreen for MainScreen<'_> {
-    fn handle_input(&mut self, input: ratatui::crossterm::event::KeyEvent) -> () {
+    fn handle_input(&mut self, input: ratatui::crossterm::event::KeyEvent) {
         if self.try_exit {
             match input {
-                any_input => self.exit_popup.handle_input(any_input)
+                any_input => self.exit_popup.handle_input(any_input),
             }
             if let Some(should_exit) = self.exit_popup.should_exit {
                 self.exit = should_exit;
@@ -138,11 +137,12 @@ static IP_REGEX: Lazy<Regex> = Lazy::new(|| {
         .unwrap()
 });
 enum BarStatus {
-    Complete,
-    Warning,
-    Error,
+    Complete(String),
+    Warning(String),
+    Error(String),
 }
-enum CommandSignal {
+#[derive(Debug)]
+pub enum CommandSignal {
     AddItem(String),
     DelItem(Option<usize>),
     Help,
@@ -151,7 +151,7 @@ enum CommandSignal {
 #[derive(Debug)]
 struct PromptBox<'a> {
     inner: TextArea<'a>,
-    handler: fn(CommandSignal) -> (),
+    command: Option<CommandSignal>,
 }
 impl Default for PromptBox<'_> {
     fn default() -> Self {
@@ -159,28 +159,36 @@ impl Default for PromptBox<'_> {
         ta.set_block(Block::bordered());
         PromptBox {
             inner: ta,
-            handler: |_| unimplemented!("No command handler specified"),
+            command: None,
         }
     }
 }
 impl PromptBox<'_> {
-    fn set_status(&mut self, message: String, status: BarStatus) {
-        self.inner.set_block(
-            Block::bordered()
-                .border_style(Style::default().fg(match status {
-                    BarStatus::Complete => Color::Blue,
-                    BarStatus::Error => Color::Red,
-                    BarStatus::Warning => Color::LightYellow,
-                }))
-                .title(message),
-        );
-    }
-    fn set_command_handler(&mut self, handler: fn(CommandSignal) -> ()) {
-        self.handler = handler;
+    fn set_status(&mut self, status: BarStatus) {
+        match status {
+            BarStatus::Complete(msg) => self.inner.set_block(
+                Block::bordered()
+                    .border_style(Style::default().blue())
+                    .title(msg),
+            ),
+            BarStatus::Error(msg) => self.inner.set_block(
+                Block::bordered()
+                    .border_style(Style::default().red())
+                    .title(msg),
+            ),
+            BarStatus::Warning(msg) => self.inner.set_block(
+                Block::bordered()
+                    .border_style(Style::default().light_yellow())
+                    .title(msg),
+            ),
+
+            #[allow(unreachable_patterns)]
+            _ => unimplemented!("No status handler"),
+        }
     }
 }
 impl RenderableWidget for PromptBox<'_> {
-    fn handle_input(&mut self, input: KeyEvent) -> () {
+    fn handle_input(&mut self, input: KeyEvent) {
         match input.code {
             KeyCode::Enter => {
                 self.inner.delete_line_by_head();
@@ -191,25 +199,55 @@ impl RenderableWidget for PromptBox<'_> {
                         "add" => {
                             if let Some(arg) = split.next() {
                                 if let Some(ip) = IP_REGEX.find(arg) {
-                                    (self.handler)(CommandSignal::AddItem(ip.as_str().to_string()));
-                                }
-                            }
-                        }
-                        "del" | "rm" => (self.handler)(CommandSignal::DelItem(
-                            if let Some(uinput) = split.next() {
-                                if let Ok(num) = usize::from_str_radix(uinput, 10) {
-                                    Some(num)
+                                    if self.command.is_some() {
+                                        panic!("Active command was not consumed")
+                                    }
+                                    self.command =
+                                        Some(CommandSignal::AddItem(ip.as_str().to_string()));
                                 } else {
-                                    None
+                                    self.set_status(BarStatus::Warning(format!(
+                                        "{} is not a valid ipv4",
+                                        arg
+                                    )));
                                 }
                             } else {
-                                None
-                            },
-                        )),
-                        "?" | "help" => (self.handler)(CommandSignal::Help),
-                        "exit" | "quit" | "close" => (self.handler)(CommandSignal::Exit),
+                                self.set_status(BarStatus::Error("Can't add nothing".to_string()));
+                            }
+                        }
+                        "del" | "rm" => {
+                            if let Some(uinput) = split.next() {
+                                if let Ok(index) = str::parse::<usize>(uinput) {
+                                    if self.command.is_some() {
+                                        panic!("Active command was not consumed")
+                                    }
+                                    self.command = Some(CommandSignal::DelItem(Some(index)))
+                                } else {
+                                    self.set_status(BarStatus::Error(format!(
+                                        "Cannot parse index {}",
+                                        uinput
+                                    )));
+                                }
+                            } else {
+                                if self.command.is_some() {
+                                    panic!("Active command was not consumed")
+                                }
+                                self.command = Some(CommandSignal::DelItem(None))
+                            }
+                        }
+                        "?" | "help" => {
+                            if self.command.is_some() {
+                                panic!("Active command was not consumed")
+                            }
+                            self.command = Some(CommandSignal::Help);
+                        }
+                        "exit" | "quit" | "close" => {
+                            if self.command.is_some() {
+                                panic!("Active command was not consumed")
+                            }
+                            self.command = Some(CommandSignal::Exit);
+                        }
                         unknown => self
-                            .set_status(format!("Unknown command {}", unknown), BarStatus::Warning),
+                            .set_status(BarStatus::Warning(format!("Unknown command {}", unknown))),
                     }
                 }
             }

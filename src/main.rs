@@ -50,24 +50,20 @@ enum ScreenState {
 impl App<'_> {
     pub async fn main_loop(&mut self, terminal: &mut DefaultTerminal) -> Result<()> {
         while !self.main.exit {
-            terminal.draw(|frame| {
-                match self.screen {
-                    ScreenState::HelpScreen(_) => unimplemented!(),
-                    ScreenState::MainScreen => {
-                        self.main.render(frame);
-                    }
+            terminal.draw(|frame| match self.screen {
+                ScreenState::HelpScreen(_) => unimplemented!(),
+                ScreenState::MainScreen => {
+                    self.main.render(frame);
                 }
             })?;
-            if let Ok(has_event) = event::poll(Duration::from_secs(0)) {
-                if has_event {
-                    if let Event::Key(event) = event::read()? {
+            if let Ok(has_event) = event::poll(Duration::from_secs(0))
+                && has_event
+                    && let Event::Key(event) = event::read()? {
                         match self.screen {
                             ScreenState::MainScreen => self.main.handle_input(event),
                             ScreenState::HelpScreen(_) => unimplemented!(),
                         }
                     }
-                }
-            }
         }
         terminal.clear()?;
         Ok(())

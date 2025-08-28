@@ -50,11 +50,7 @@ impl GetServiceCapabilities {
         if let Some(user) = self.username {
             builder = builder.basic_auth(
                 user,
-                if let Some(pass) = self.password {
-                    Some(pass)
-                } else {
-                    None
-                },
+                self.password,
             );
         }
         
