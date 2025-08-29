@@ -1,3 +1,5 @@
+use std::{pin::Pin, process::Command};
+
 use once_cell::sync::Lazy;
 use ratatui::{
     Frame,
@@ -13,18 +15,43 @@ use tui_textarea::TextArea;
 use crate::{
     device_docs::DeviceDoc,
     screens::confirm_exit::ConfirmExitScreen,
-    traits::{RenderableScreen, RenderableWidget},
+    traits::{Observer, RenderableScreen, RenderableWidget, Subject},
 };
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct MainScreen<'a> {
     inputbox: PromptBox<'a>,
     iplist: IpList<'a>,
     exit_popup: ConfirmExitScreen,
     try_exit: bool,
     pub exit: bool,
+    watching:Vec<&'a mut PromptBox<'a>>
 }
 impl MainScreen<'_> {}
+impl Default for MainScreen<'_> {
+    fn default() -> Self {
+        Self {
+            inputbox: PromptBox::default(),
+            exit: false,
+            exit_popup: ConfirmExitScreen::default(),
+            iplist:IpList::default(),
+            try_exit: false,
+            watching: Vec::default()
+        }
+    }
+}
+impl<'a> Observer<'a, PromptBox<'a>, CommandSignal> for MainScreen<'a> {
+    fn watch(&mut self, subject:&'a mut PromptBox<'a>) {
+        self.watching.push(subject);
+    }
+    fn update(&mut self) -> Vec<Option<CommandSignal>> {
+        let mut rvals:Vec<Option<CommandSignal>> = Vec::new();
+        self.watching.iter_mut().for_each(|pbox| {
+            rvals.push(pbox.consume());
+        });
+        rvals
+    }
+}
 impl RenderableScreen for MainScreen<'_> {
     fn handle_input(&mut self, input: ratatui::crossterm::event::KeyEvent) {
         if self.try_exit {
@@ -141,7 +168,7 @@ enum BarStatus {
     Warning(String),
     Error(String),
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum CommandSignal {
     AddItem(String),
     DelItem(Option<usize>),
@@ -161,6 +188,20 @@ impl Default for PromptBox<'_> {
             inner: ta,
             command: None,
         }
+    }
+}
+impl Subject<CommandSignal> for PromptBox<'_> {
+    fn consume(&mut self) -> Option<CommandSignal> {
+        if let Some(signal) = &self.command {
+            let sig = Some(signal.clone());
+            self.command = None;
+            return sig;
+        } else {
+            return None;
+        }
+    }
+    fn observe(&self) -> Option<CommandSignal> {
+        self.command.clone()
     }
 }
 impl PromptBox<'_> {
